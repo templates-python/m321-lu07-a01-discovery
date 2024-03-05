@@ -1,63 +1,83 @@
-import socket
-import selectors
-import types
+#!/usr/bin/env python3
 
-"""
-discovery service using sockets
-based on "https://realpython.com/python-sockets/"
-"""
-HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
-PORT = 65432  # Port to listen on (non-privileged ports are > 1023)
+import selectors
+import socket
+import traceback
+
+from server_message import ServerMessage
+from services import Services
+
+HOST = '127.0.0.1'
+PORT = 65432
 
 
 def main():
-    selector = selectors.DefaultSelector()
+    sel = selectors.DefaultSelector()
+    services = Services()
+
     lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # Avoid bind() exception: OSError: [Errno 48] Address already in use
+    lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     lsock.bind((HOST, PORT))
     lsock.listen()
     print(f'Listening on {(HOST, PORT)}')
     lsock.setblocking(False)
-    selector.register(lsock, selectors.EVENT_READ, data=None)
+    sel.register(lsock, selectors.EVENT_READ, data=None)
 
     try:
         while True:
-            events = selector.select(timeout=None)
+            events = sel.select(timeout=None)
             for key, mask in events:
                 if key.data is None:
-                    accept_wrapper(selector, key.fileobj)
+                    accept_wrapper(sel, key.fileobj)
                 else:
-                    service_connection(selector, key, mask)
+                    message = key.data
+                    try:
+                        message.process_events(mask)
+                        process_action(message, services)
+                    except Exception:
+                        print(
+                            f'Main: Error: Exception for {message.ipaddr}:\n'
+                            f'{traceback.format_exc()}'
+                        )
+                        message._close()
     except KeyboardInterrupt:
         print('Caught keyboard interrupt, exiting')
     finally:
-        selector.close()
+        sel.close()
 
 
-def accept_wrapper(selector, sock):
+def process_action(message, services):
+    print(message.event)
+    if message.event == 'READ':
+        action = message.request['action']
+        if action == 'register':
+            service_uuid = services.register(
+                message.request['type'],
+                message.request['ip'],
+                message.request['port']
+            )
+            message.response = service_uuid
+        elif action == 'heartbeat':
+            result = services.heartbeat(
+                message.request['uuid']
+            )
+            message.response = result
+        elif action == 'query':
+            result = services.query(
+                message.request['type']
+            )
+            message.response = result
+
+        message.set_selector_events_mask('w')
+
+
+def accept_wrapper(sel, sock):
     conn, addr = sock.accept()  # Should be ready to read
     print(f'Accepted connection from {addr}')
     conn.setblocking(False)
-    data = types.SimpleNamespace(addr=addr, inb=b'', outb=b'')
-    events = selectors.EVENT_READ | selectors.EVENT_WRITE
-    selector.register(conn, events, data=data)
-
-
-def service_connection(selector, key, mask):
-    sock = key.fileobj
-    data = key.data
-    if mask & selectors.EVENT_READ:
-        recv_data = sock.recv(1024)  # Should be ready to read
-        if recv_data:
-            data.outb += recv_data
-        else:
-            print(f'Closing connection to {data.addr}')
-            selector.unregister(sock)
-            sock.close()
-    if mask & selectors.EVENT_WRITE:
-        if data.outb:
-            print(f'Echoing {data.outb!r} to {data.addr}')
-            sent = sock.send(data.outb)  # Should be ready to write
-            data.outb = data.outb[sent:]
+    message = ServerMessage(sel, conn, addr)
+    sel.register(conn, selectors.EVENT_READ, data=message)
 
 
 if __name__ == '__main__':

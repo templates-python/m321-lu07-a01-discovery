@@ -1,77 +1,107 @@
-import sys
-import socket
 import selectors
-import types
+import socket
+import time
+import traceback
 
-HOST = '127.0.0.1'  # The server's hostname or IP address
-PORT = 65432  # The port used by the server
-def socket_client():
-    selector = selectors.DefaultSelector()
-    messages = [
-        b'register hive 127.0.0.1 65433',
-        b'register hive 192.168.99.99 65434',
-        b'query hive'
-    ]
+from client_message import ClientMessage
 
-    def start_connections(host, port, num_conns):
-        server_addr = (host, port)
-        for i in range(0, num_conns):
-            connid = i + 1
-            print(f'Starting connection {connid} to {server_addr}')
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.setblocking(False)
-            sock.connect_ex(server_addr)
-            events = selectors.EVENT_READ | selectors.EVENT_WRITE
-            data = types.SimpleNamespace(
-                connid=connid,
-                msg_total=sum(len(m) for m in messages),
-                recv_total=0,
-                messages=messages.copy(),
-                outb=b'',
-            )
-            selector.register(sock, events, data=data)
+HOST = '127.0.0.1'
+PORT = 65432
 
-    def service_connection(key, mask):
-        sock = key.fileobj
-        data = key.data
-        if mask & selectors.EVENT_READ:
-            recv_data = sock.recv(1024)  # Should be ready to read
-            if recv_data:
-                print(f'Received {recv_data!r} from connection {data.connid}')
-                data.recv_total += len(recv_data)
-            if not recv_data or data.recv_total == data.msg_total:
-                print(f'Closing connection {data.connid}')
-                selector.unregister(sock)
-                sock.close()
-        if mask & selectors.EVENT_WRITE:
-            if not data.outb and data.messages:
-                data.outb = data.messages.pop(0)
-            if data.outb:
-                print(f'Sending {data.outb!r} to connection {data.connid}')
-                sent = sock.send(data.outb)  # Should be ready to write
-                data.outb = data.outb[sent:]
+uuids = []
 
-    if len(sys.argv) != 4:
-        print(f'Usage: {sys.argv[0]} <host> <port> <num_connections>')
-        sys.exit(1)
 
-    host, port, num_conns = sys.argv[1:4]
-    start_connections(host, int(port), int(num_conns))
+def main():
+    item = {'action': 'register', 'ip': '127.0.0.1', 'port': 65433, 'type': 'hive'}
+    print(f'registering service: {item["type"]} {item["ip"]} {item["port"]}')
+    send_request(item)
+
+    item = {'action': 'register', 'ip': '192.168.99.99', 'port': 65438, 'type': 'world'}
+    print(f'registering service: {item["type"]} {item["ip"]} {item["port"]}')
+    send_request(item)
+
+    item = {'action': 'heartbeat', 'uuid': uuids[1]}
+    print(f'heartbeat for service: {uuids[1]}')
+    send_request(item)
+    time.sleep(1)
+
+    item = {'action': 'register', 'ip': '127.0.0.1', 'port': 66554, 'type': 'hive'}
+    print(f'registering service: {item["type"]} {item["ip"]} {item["port"]}')
+    send_request(item)
+
+    item = {'action': 'query', 'type': 'hive'}
+    print(f'query for services: {item["type"]}')
+    send_request(item)
+    time.sleep(3)
+
+    item = {'action': 'query', 'type': 'hive'}
+    print(f'query for services: {item["type"]}')
+    send_request(item)
+    time.sleep(1)
+
+
+def send_request(action):
+    """
+    sends a request to the server
+    :param action:
+    :return:
+    """
+    sel = selectors.DefaultSelector()
+    request = create_request(action)
+    start_connection(sel, HOST, PORT, request)
 
     try:
         while True:
-            events = selector.select(timeout=1)
-            if events:
-                for key, mask in events:
-                    service_connection(key, mask)
+            events = sel.select(timeout=1)
+            for key, mask in events:
+                message = key.data
+                try:
+                    message.process_events(mask)
+                except Exception:
+                    print(
+                        f'Main: Error: Exception for {message.ipaddr}:\n'
+                        f'{traceback.format_exc()}'
+                    )
+                    message.close()
             # Check for a socket being monitored to continue.
-            if not selector.get_map():
+            if not sel.get_map():
                 break
     except KeyboardInterrupt:
         print('Caught keyboard interrupt, exiting')
     finally:
-        selector.close()
+        sel.close()
+    process_response(action, message)
+
+
+def process_response(action, message):
+    """
+    process the response from the server
+    :param action:
+    :param message:
+    :return:
+    """
+    if action['action'] == 'register':
+        uuids.append(message.response.decode('utf-8'))
+
+
+def create_request(action_item):
+    return dict(
+        type='text/json',
+        encoding='utf-8',
+        content=action_item,
+    )
+
+
+def start_connection(sel, host, port, request):
+    addr = (host, port)
+    print(f'Starting connection to {addr}')
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setblocking(False)
+    sock.connect_ex(addr)
+    events = selectors.EVENT_READ | selectors.EVENT_WRITE
+    message = ClientMessage(sel, sock, addr, request)
+    sel.register(sock, events, data=message)
 
 
 if __name__ == '__main__':
-    socket_client()
+    main()
