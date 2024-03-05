@@ -3,39 +3,40 @@ from datetime import datetime
 
 
 class Services:
+    """
+    manages a list of registered services
+    """
     def __init__(self):
         self._service_list = []
 
     def register(self, type, ipaddr, port):
+        """
+        registers a service
+        :param type: A keyword to define the type of service
+        :param ipaddr: IPv4 or IPv6 address of the service
+        :param port: Portnumber where the service can be reached
+        :return: UUID identifying the service, must be supplied for 'heartbeat'
+        """
         service_uuid = str(uuid.uuid4())
-        new_service = {
-            'uuid': service_uuid,
-            'type': type,
-            'ip': ipaddr,
-            'port': port,
-            'heartbeat': datetime.now()
-        }
-        self._service_list.append(new_service)
+        # TODO register the service
         return service_uuid
 
     def heartbeat(self, service_uuid):
-        for service in self._service_list:
-            if service['uuid'] == service_uuid:
-                service['heartbeat'] = datetime.now()
-                return 'OK'
+        """
+        updates the heartbeat for a service
+        :param service_uuid: UUID identifying the service
+        :return: 'OK' / 'NOT FOUND'
+        """
+        # TODO update the heartbeat on the service
         return 'NOT FOUND'
 
     def query(self, type):
+        """
+        Query the list for all active services of a certain type
+        :param type: A keyword to identify the services
+        :return: A list of dictionaries with the ip-address and the port of each service
+        """
         results = []
-        for index, service in enumerate(self._service_list):
-            age = (datetime.now() - service['heartbeat']).total_seconds()
-            if age > 5:
-                self._service_list.pop(index)
-            elif service['type'] == type:
-                results.append(
-                    {
-                        'ip': service['ip'],
-                        'port': service['port']
-                    }
-                )
+        # TODO create a list of active services for the type
+        # TODO remove all expired services
         return str(results)

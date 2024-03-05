@@ -48,26 +48,10 @@ def main():
 
 
 def process_action(message, services):
-    print(message.event)
+
     if message.event == 'READ':
         action = message.request['action']
-        if action == 'register':
-            service_uuid = services.register(
-                message.request['type'],
-                message.request['ip'],
-                message.request['port']
-            )
-            message.response = service_uuid
-        elif action == 'heartbeat':
-            result = services.heartbeat(
-                message.request['uuid']
-            )
-            message.response = result
-        elif action == 'query':
-            result = services.query(
-                message.request['type']
-            )
-            message.response = result
+        # TODO call the methods on the Services-object depending on the action
 
         message.set_selector_events_mask('w')
 
