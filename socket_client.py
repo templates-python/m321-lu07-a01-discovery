@@ -62,7 +62,7 @@ def send_request(action):
                         f'Main: Error: Exception for {message.ipaddr}:\n'
                         f'{traceback.format_exc()}'
                     )
-                    message.close()
+                    message._close()
             # Check for a socket being monitored to continue.
             if not sel.get_map():
                 break
