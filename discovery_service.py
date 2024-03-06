@@ -52,7 +52,7 @@ def process_action(message, services):
     if message.event == 'READ':
         action = message.request['action']
         # TODO call the methods on the Services-object depending on the action
-
+        message.response = 'TODO Response from the method'
         message.set_selector_events_mask('w')
 
 
