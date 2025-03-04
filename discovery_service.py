@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+""" Implements a simple discovery service that listens for incoming connections """
 
 import selectors
 import socket
@@ -12,6 +12,9 @@ PORT = 65432
 
 
 def main():
+    """
+    main entry point for the discovery service
+    """
     sel = selectors.DefaultSelector()
     services = Services()
 
@@ -48,6 +51,11 @@ def main():
 
 
 def process_action(message, services):
+    """
+    process the action from the client
+    :param message: the message object
+    :param services: the services object
+    """
 
     if message.event == 'READ':
         action = message.request['action']
@@ -57,6 +65,9 @@ def process_action(message, services):
 
 
 def accept_wrapper(sel, sock):
+    """
+    accept a connection
+    """
     conn, addr = sock.accept()  # Should be ready to read
     print(f'Accepted connection from {addr}')
     conn.setblocking(False)

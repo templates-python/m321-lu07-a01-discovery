@@ -1,3 +1,7 @@
+"""
+This module contains the ClientMessage class, which is a subclass of the Message class.
+It is used to handle messages sent by the client to the server.
+"""
 from message import Message, json_encode, json_decode
 
 
@@ -6,6 +10,9 @@ class ClientMessage(Message):
     constructor for ClientMessage
     """
     def __init__(self, selector, socket, ipaddr, request):
+        """
+        constructor for the ClientMessage class
+        """
         super().__init__(selector, socket, ipaddr)
         self._request = request
         self._request_queued = False
@@ -23,11 +30,18 @@ class ClientMessage(Message):
                 self.process_response()
 
     def _process_response_json_content(self):
+        """
+        process the response content
+        :return:
+        """
         content = self._response
-        # result = content.get('result')
         print(f'Got result: {content}')
 
     def _process_response_binary_content(self):
+        """
+        process binary content in the response
+        :return:
+        """
         content = self._response
         print(f'Got response: {content!r}')
 
@@ -72,6 +86,10 @@ class ClientMessage(Message):
         self._request_queued = True
 
     def process_response(self):
+        """
+        Process the response from the server
+        :return:
+        """
         content_len = self._jsonheader['content-length']
         if not len(self._recv_buffer) >= content_len:
             return

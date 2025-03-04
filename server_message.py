@@ -1,8 +1,15 @@
+""" ServerMessage class for handling server messages """
 from message import Message, json_decode
 
 
 class ServerMessage(Message):
+    """
+    Class for the message from the server
+    """
     def __init__(self, selector, socket, ipaddr):
+        """
+        constructor for the ServerMessage class
+        """
         super().__init__(selector, socket, ipaddr)
         self._response = None
         self._response_created = False

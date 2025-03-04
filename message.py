@@ -1,3 +1,4 @@
+""" Provides the Message class for the server and client classes to inherit from. """
 import io
 import json
 import selectors
@@ -99,6 +100,10 @@ class Message:
         return response
 
     def _create_response_text_content(self):
+        """
+        creates the response content as text
+        :return: dict
+        """
         response = {
             'content_bytes': bytes(self._response, 'utf-8'),
             'content_type': 'text/plain',
@@ -194,6 +199,9 @@ class Message:
         return response_message
 
     def _close(self):
+        """
+        closes the connection
+        """
         print(f'Closing connection to {self._ipaddr}')
         try:
             self._selector.unregister(self._socket)

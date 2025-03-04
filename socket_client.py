@@ -12,6 +12,9 @@ uuids = []
 
 
 def main():
+    """
+    Simulation of a client connecting to the server
+    """
     item = {'action': 'register', 'ip': '127.0.0.1', 'port': 65433, 'type': 'hive'}
     print(f'registering service: {item["type"]} {item["ip"]} {item["port"]}')
     send_request(item)

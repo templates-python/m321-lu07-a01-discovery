@@ -1,3 +1,4 @@
+""" This module provides a class to manage a list of services """
 import uuid
 from datetime import datetime
 
@@ -7,6 +8,9 @@ class Services:
     manages a list of registered services
     """
     def __init__(self):
+        """
+        constructor for the Services class
+        """
         self._service_list = []
 
     def register(self, type, ipaddr, port):
